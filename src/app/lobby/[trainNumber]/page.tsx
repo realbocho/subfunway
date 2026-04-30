@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
@@ -20,8 +20,8 @@ export default function LobbyPage() {
   const [isStarting, setIsStarting] = useState(false);
   const [selectedMode, setSelectedMode] = useState<GameMode | null>(null);
   const [playerCount, setPlayerCount] = useState(0);
+  const redirectingRef = useRef(false);
 
-  // Redirect if no player session
   useEffect(() => {
     if (!playerId || !roomId) {
       router.replace('/');
@@ -41,10 +41,21 @@ export default function LobbyPage() {
       setLocalRoom(roomData);
       setRoom(roomData);
 
-      // If game already started, redirect to game
+      // rooms.status가 playing이면 실제 playing 세션이 있는지 확인
       if (roomData.status === 'playing') {
-        router.push(`/game/${trainNumber}`);
-        return;
+        const { data: activeSession } = await supabase
+          .from('game_sessions')
+          .select('id, status')
+          .eq('room_id', roomId)
+          .eq('status', 'playing')
+          .single();
+
+        // 실제로 진행 중인 세션이 있을 때만 게임으로 이동
+        if (activeSession && !redirectingRef.current) {
+          redirectingRef.current = true;
+          router.push(`/game/${trainNumber}`);
+          return;
+        }
       }
     }
 
@@ -100,11 +111,23 @@ export default function LobbyPage() {
       .on('postgres_changes', {
         event: 'UPDATE', schema: 'public', table: 'rooms',
         filter: `id=eq.${roomId}`,
-      }, (payload) => {
+      }, async (payload) => {
         const updatedRoom = payload.new as Room;
         setLocalRoom(updatedRoom);
-        if (updatedRoom.status === 'playing') {
-          router.push(`/game/${trainNumber}`);
+
+        if (updatedRoom.status === 'playing' && !redirectingRef.current) {
+          // 실제 playing 세션 존재 여부 재확인
+          const { data: activeSession } = await supabase
+            .from('game_sessions')
+            .select('id, status')
+            .eq('room_id', roomId)
+            .eq('status', 'playing')
+            .single();
+
+          if (activeSession) {
+            redirectingRef.current = true;
+            router.push(`/game/${trainNumber}`);
+          }
         }
       })
       .on('postgres_changes', {
@@ -115,7 +138,6 @@ export default function LobbyPage() {
       })
       .subscribe();
 
-    // Heartbeat
     const heartbeat = setInterval(async () => {
       if (playerId) {
         await supabase
@@ -131,7 +153,6 @@ export default function LobbyPage() {
     };
   }, [roomId, playerId, router, trainNumber, addChatMessage]);
 
-  // Update connected count
   useEffect(() => {
     setPlayerCount(players.filter(p => p.is_connected).length);
     setPlayers(players);
@@ -139,7 +160,7 @@ export default function LobbyPage() {
 
   const handleStartGame = async () => {
     if (!selectedMode || !roomId || !playerId) return;
-    
+
     if (selectedMode === 'mafia' && playerCount < 4) {
       alert('마피아 게임은 최소 4명이 필요합니다.');
       return;
@@ -161,6 +182,7 @@ export default function LobbyPage() {
       const data = await res.json();
       if (res.ok) {
         setSession(data.session);
+        redirectingRef.current = true;
         router.push(`/game/${trainNumber}`);
       } else {
         alert(data.error);
@@ -174,7 +196,6 @@ export default function LobbyPage() {
 
   const handleLeave = async () => {
     if (playerId) {
-      // Send last words if in game
       await supabase.from('players').update({ is_connected: false }).eq('id', playerId);
       await supabase.from('chat_messages').insert({
         room_id: roomId,
@@ -189,7 +210,6 @@ export default function LobbyPage() {
 
   return (
     <main className="min-h-dvh bg-subway-darker flex flex-col safe-top safe-bottom">
-      {/* Header */}
       <div className="glass-panel border-b border-subway-border px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
@@ -216,7 +236,6 @@ export default function LobbyPage() {
         </div>
       </div>
 
-      {/* My nickname badge */}
       <div className="px-4 py-2 flex justify-center">
         <div className="subway-card px-4 py-2 flex items-center gap-2">
           <span className="text-subway-yellow text-xs">나</span>
@@ -224,12 +243,9 @@ export default function LobbyPage() {
         </div>
       </div>
 
-      {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Players */}
         <PlayerList players={players} myPlayerId={playerId || ''} />
 
-        {/* Game mode selection */}
         <div className="px-4 py-3 border-t border-subway-border">
           <p className="text-xs text-subway-muted mb-2 text-center">게임 선택</p>
           <div className="grid grid-cols-2 gap-3">
@@ -290,7 +306,6 @@ export default function LobbyPage() {
           </AnimatePresence>
         </div>
 
-        {/* Chat */}
         <ChatBox roomId={roomId || ''} playerId={playerId || ''} />
       </div>
     </main>
