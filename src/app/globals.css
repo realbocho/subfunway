@@ -1,0 +1,182 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    min-height: 100dvh;
+    background: #050508;
+    overscroll-behavior: none;
+  }
+
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #0A0A0F;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #1E1E2E;
+    border-radius: 2px;
+  }
+
+  input, button {
+    font-family: inherit;
+  }
+}
+
+@layer components {
+  .subway-card {
+    @apply bg-subway-panel border border-subway-border rounded-2xl;
+  }
+
+  .subway-btn {
+    @apply px-6 py-3 rounded-xl font-medium transition-all duration-200 active:scale-95 select-none;
+  }
+
+  .subway-btn-primary {
+    @apply subway-btn bg-subway-yellow text-subway-darker hover:bg-yellow-400 font-bold;
+  }
+
+  .subway-btn-ghost {
+    @apply subway-btn border border-subway-border text-subway-muted hover:border-subway-yellow hover:text-subway-yellow;
+  }
+
+  .subway-input {
+    @apply bg-subway-panel border-2 border-subway-border rounded-xl px-4 py-3 
+           text-subway-text placeholder-subway-muted font-mono text-2xl tracking-widest
+           focus:outline-none focus:border-subway-yellow transition-colors duration-200 text-center w-full;
+  }
+
+  .train-number-display {
+    @apply font-mono font-bold text-subway-yellow tracking-widest;
+  }
+
+  .system-message {
+    @apply text-xs text-subway-muted italic text-center py-1;
+  }
+
+  .chat-bubble {
+    @apply max-w-[80%] px-3 py-2 rounded-2xl text-sm break-words;
+  }
+
+  .neon-border {
+    box-shadow: 0 0 0 1px rgba(245, 197, 24, 0.3), 0 0 20px rgba(245, 197, 24, 0.1);
+  }
+
+  .neon-text {
+    text-shadow: 0 0 20px rgba(245, 197, 24, 0.5);
+  }
+
+  .glass-panel {
+    background: rgba(18, 18, 26, 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* Omok board */
+  .omok-cell {
+    @apply relative flex items-center justify-center cursor-pointer;
+    aspect-ratio: 1;
+  }
+
+  .omok-cell::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  .omok-cell::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  .omok-stone {
+    @apply relative z-10 rounded-full transition-all duration-150;
+    width: 70%;
+    height: 70%;
+  }
+
+  /* Scanline effect */
+  .scanline {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 9999;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.03) 2px,
+      rgba(0, 0, 0, 0.03) 4px
+    );
+  }
+
+  /* Loading dots */
+  .loading-dots span {
+    animation: blink 1.4s infinite;
+  }
+  .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+  /* Role card */
+  .role-card {
+    @apply subway-card p-6 flex flex-col items-center gap-3 text-center;
+    border-width: 2px;
+  }
+
+  /* Phase banner */
+  .phase-banner {
+    @apply font-mono font-bold tracking-widest text-sm px-4 py-2 rounded-full;
+  }
+}
+
+@layer utilities {
+  .text-glow-yellow {
+    text-shadow: 0 0 10px rgba(245, 197, 24, 0.8), 0 0 30px rgba(245, 197, 24, 0.4);
+  }
+
+  .text-glow-red {
+    text-shadow: 0 0 10px rgba(232, 0, 45, 0.8), 0 0 30px rgba(232, 0, 45, 0.4);
+  }
+
+  .text-glow-blue {
+    text-shadow: 0 0 10px rgba(0, 52, 153, 0.8), 0 0 30px rgba(0, 52, 153, 0.4);
+  }
+
+  .bg-grid {
+    background-size: 30px 30px;
+    background-image: 
+      linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+  }
+}
+
+/* PWA safe areas */
+@supports (padding: max(0px)) {
+  .safe-top { padding-top: max(0px, env(safe-area-inset-top)); }
+  .safe-bottom { padding-bottom: max(0px, env(safe-area-inset-bottom)); }
+}
