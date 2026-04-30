@@ -52,13 +52,16 @@ export function useOmokTimer({
 
       if (secondsRef.current <= 0) {
         clearInterval(timerRef.current);
-        // Auto-skip when timer runs out
-        skipTurn(currentTurnPlayerId);
+        // ✅ 핵심 수정: 내가 현재 턴 플레이어일 때만 스킵 요청을 보냄
+        // 방에 있는 모든 클라이언트가 스킵을 보내면 중복 처리됨
+        if (currentTurnPlayerId === myPlayerId) {
+          skipTurn(currentTurnPlayerId);
+        }
       }
     }, 1000);
 
     return () => clearInterval(timerRef.current);
-  }, [currentTurnPlayerId, isGameOver, durationSeconds, onTimerUpdate, skipTurn]);
+  }, [currentTurnPlayerId, isGameOver, durationSeconds, onTimerUpdate, skipTurn, myPlayerId]);
 
   return { skipTurn };
 }
