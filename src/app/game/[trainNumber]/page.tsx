@@ -18,18 +18,26 @@ export default function GamePage() {
   const [session, setLocalSession] = useState<GameSession | null>(null);
   const [players, setLocalPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
+  // ✅ zustand persist hydration 완료 여부
+  const [hydrated, setHydrated] = useState(false);
+
+  // ✅ 마운트 후 한 틱 뒤에 hydration 완료로 처리
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   useEffect(() => {
+    // hydration 전엔 redirect 하지 않음 — playerId가 아직 null일 수 있음
+    if (!hydrated) return;
     if (!playerId || !roomId) {
       router.replace('/');
     }
-  }, [playerId, roomId, router]);
+  }, [hydrated, playerId, roomId, router]);
 
   useEffect(() => {
     if (!roomId) return;
 
     const loadGame = async () => {
-      // Get active session
       const { data: sessionData } = await supabase
         .from('game_sessions')
         .select('*')
@@ -103,7 +111,6 @@ export default function GamePage() {
       })
       .subscribe();
 
-    // Heartbeat
     const heartbeat = setInterval(async () => {
       if (playerId) {
         await supabase
@@ -119,7 +126,8 @@ export default function GamePage() {
     };
   }, [roomId, playerId, addChatMessage, setSession]);
 
-  if (loading) {
+  // ✅ hydration 전이거나 로딩 중이면 스피너
+  if (!hydrated || loading) {
     return (
       <div className="min-h-dvh bg-subway-darker flex items-center justify-center">
         <motion.div
@@ -156,21 +164,24 @@ export default function GamePage() {
     );
   }
 
+  // ✅ playerId가 확실히 있을 때만 렌더링 ('' 전달 방지)
+  if (!playerId || !roomId) return null;
+
   return session.game_mode === 'omok' ? (
     <OmokGame
       session={session}
       players={players}
       trainNumber={trainNumber}
-      myPlayerId={playerId || ''}
-      roomId={roomId || ''}
+      myPlayerId={playerId}
+      roomId={roomId}
     />
   ) : (
     <MafiaGame
       session={session}
       players={players}
       trainNumber={trainNumber}
-      myPlayerId={playerId || ''}
-      roomId={roomId || ''}
+      myPlayerId={playerId}
+      roomId={roomId}
     />
   );
 }
