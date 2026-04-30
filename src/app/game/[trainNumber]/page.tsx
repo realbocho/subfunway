@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useGameStore } from '@/store/gameStore';
@@ -18,16 +18,15 @@ export default function GamePage() {
   const [session, setLocalSession] = useState<GameSession | null>(null);
   const [players, setLocalPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
-  // ✅ zustand persist hydration 완료 여부
   const [hydrated, setHydrated] = useState(false);
+  // 게임이 실제로 끝났는지 추적 — 로비 리다이렉트 중복 방지
+  const redirectingRef = useRef(false);
 
-  // ✅ 마운트 후 한 틱 뒤에 hydration 완료로 처리
   useEffect(() => {
     setHydrated(true);
   }, []);
 
   useEffect(() => {
-    // hydration 전엔 redirect 하지 않음 — playerId가 아직 null일 수 있음
     if (!hydrated) return;
     if (!playerId || !roomId) {
       router.replace('/');
@@ -38,15 +37,21 @@ export default function GamePage() {
     if (!roomId) return;
 
     const loadGame = async () => {
+      // playing 세션뿐 아니라 ended 세션도 조회
       const { data: sessionData } = await supabase
         .from('game_sessions')
         .select('*')
         .eq('room_id', roomId)
-        .eq('status', 'playing')
+        .order('created_at', { ascending: false })
+        .limit(1)
         .single();
 
-      if (!sessionData) {
-        router.push(`/lobby/${trainNumber}`);
+      if (!sessionData || sessionData.status === 'ended') {
+        // 세션이 없거나 이미 끝난 경우 → 로비로
+        if (!redirectingRef.current) {
+          redirectingRef.current = true;
+          router.push(`/lobby/${trainNumber}`);
+        }
         return;
       }
 
@@ -92,6 +97,8 @@ export default function GamePage() {
         const updated = payload.new as GameSession;
         setLocalSession(updated);
         setSession(updated);
+        // 세션이 ended로 바뀌면 → 게임 컴포넌트가 결과 화면을 보여줌
+        // 여기서 로비로 보내지 않음 (OmokGame 내부의 isGameOver UI가 처리)
       })
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'players',
@@ -126,7 +133,6 @@ export default function GamePage() {
     };
   }, [roomId, playerId, addChatMessage, setSession]);
 
-  // ✅ hydration 전이거나 로딩 중이면 스피너
   if (!hydrated || loading) {
     return (
       <div className="min-h-dvh bg-subway-darker flex items-center justify-center">
@@ -148,23 +154,7 @@ export default function GamePage() {
     );
   }
 
-  if (!session) {
-    return (
-      <div className="min-h-dvh bg-subway-darker flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-subway-muted">게임을 찾을 수 없습니다</p>
-          <button
-            onClick={() => router.push(`/lobby/${trainNumber}`)}
-            className="subway-btn-ghost mt-4"
-          >
-            로비로 돌아가기
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ✅ playerId가 확실히 있을 때만 렌더링 ('' 전달 방지)
+  if (!session) return null;
   if (!playerId || !roomId) return null;
 
   return session.game_mode === 'omok' ? (
