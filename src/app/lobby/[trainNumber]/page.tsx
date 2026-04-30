@@ -111,23 +111,18 @@ export default function LobbyPage() {
       .on('postgres_changes', {
         event: 'UPDATE', schema: 'public', table: 'rooms',
         filter: `id=eq.${roomId}`,
-      }, async (payload) => {
+      }, (payload) => {
         const updatedRoom = payload.new as Room;
         setLocalRoom(updatedRoom);
-
-        if (updatedRoom.status === 'playing' && !redirectingRef.current) {
-          // 실제 playing 세션 존재 여부 재확인
-          const { data: activeSession } = await supabase
-            .from('game_sessions')
-            .select('id, status')
-            .eq('room_id', roomId)
-            .eq('status', 'playing')
-            .single();
-
-          if (activeSession) {
-            redirectingRef.current = true;
-            router.push(`/game/${trainNumber}`);
-          }
+      })
+      // ✅ rooms UPDATE 타이밍 이슈 우회 — game_sessions INSERT를 직접 감지
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'game_sessions',
+        filter: `room_id=eq.${roomId}`,
+      }, (payload) => {
+        if (!redirectingRef.current) {
+          redirectingRef.current = true;
+          router.push(`/game/${trainNumber}`);
         }
       })
       .on('postgres_changes', {
