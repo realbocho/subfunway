@@ -25,8 +25,9 @@ export default function HomePage() {
     }
   }, [step]);
 
-  const handleJoin = async () => {
-    if (trainInput.length !== 4) {
+  // 핵심 수정: train 값을 직접 인자로 받아서 state closure 문제 제거
+  const handleJoin = async (train: string) => {
+    if (train.length !== 4) {
       setError('4자리 열차 번호를 입력해주세요');
       return;
     }
@@ -36,11 +37,11 @@ export default function HomePage() {
 
     try {
       const fingerprint = await getFingerprint();
-      
+
       const res = await fetch('/api/rooms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ trainNumber: trainInput, fingerprint }),
+        body: JSON.stringify({ trainNumber: train, fingerprint }),
       });
 
       const data = await res.json();
@@ -59,7 +60,7 @@ export default function HomePage() {
         fingerprint,
       });
 
-      router.push(`/lobby/${trainInput}`);
+      router.push(`/lobby/${train}`);
     } catch {
       setError('네트워크 오류가 발생했습니다.');
     } finally {
@@ -71,8 +72,9 @@ export default function HomePage() {
     const value = e.target.value.replace(/\D/g, '').slice(0, 4);
     setTrainInput(value);
     setError('');
+    // 4자리가 되면 최신 value를 바로 넘김 (state 업데이트 대기 없음)
     if (value.length === 4) {
-      setTimeout(handleJoin, 100);
+      handleJoin(value);
     }
   };
 
@@ -81,12 +83,12 @@ export default function HomePage() {
       {/* Background */}
       <div className="absolute inset-0 bg-grid opacity-100" />
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-subway-darker/80" />
-      
+
       {/* Animated subway line */}
       <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-subway-yellow to-transparent opacity-30" />
       <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-subway-blue to-transparent opacity-30" />
 
-      {/* Moving dots on subway line */}
+      {/* Moving dot */}
       <motion.div
         className="absolute top-0 w-4 h-1 bg-subway-yellow rounded-full"
         animate={{ x: ['0vw', '100vw'] }}
@@ -104,7 +106,6 @@ export default function HomePage() {
               transition={{ duration: 0.5 }}
               className="flex flex-col items-center gap-8 text-center"
             >
-              {/* Logo */}
               <div className="flex flex-col items-center gap-3">
                 <motion.div
                   className="text-6xl"
@@ -123,7 +124,6 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* Tagline */}
               <div className="subway-card p-5 w-full neon-border">
                 <p className="text-subway-text text-sm leading-relaxed">
                   지루한 이동 시간을<br />
@@ -135,7 +135,6 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* Features */}
               <div className="grid grid-cols-3 gap-3 w-full">
                 {[
                   { icon: '🔢', label: '열차 번호로\n즉시 연결' },
@@ -157,7 +156,6 @@ export default function HomePage() {
                 ))}
               </div>
 
-              {/* CTA */}
               <motion.button
                 className="subway-btn-primary w-full text-lg py-4"
                 onClick={() => setStep('enter')}
@@ -181,7 +179,7 @@ export default function HomePage() {
               className="flex flex-col items-center gap-6"
             >
               <button
-                onClick={() => setStep('intro')}
+                onClick={() => { setStep('intro'); setTrainInput(''); setError(''); }}
                 className="self-start text-subway-muted text-sm flex items-center gap-1 hover:text-subway-text transition-colors"
               >
                 ← 돌아가기
@@ -196,7 +194,6 @@ export default function HomePage() {
                 </p>
               </div>
 
-              {/* Visual guide */}
               <div className="subway-card p-4 w-full relative overflow-hidden">
                 <div className="absolute top-0 left-0 right-0 h-0.5 bg-subway-yellow opacity-50" />
                 <div className="flex items-center gap-3">
@@ -210,7 +207,6 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* Input */}
               <div className="w-full">
                 <input
                   ref={inputRef}
@@ -224,8 +220,7 @@ export default function HomePage() {
                   maxLength={4}
                   disabled={isLoading}
                 />
-                
-                {/* Progress dots */}
+
                 <div className="flex justify-center gap-2 mt-3">
                   {[0,1,2,3].map(i => (
                     <motion.div
@@ -255,7 +250,7 @@ export default function HomePage() {
 
               <motion.button
                 className="subway-btn-primary w-full text-lg py-4 disabled:opacity-50 disabled:cursor-not-allowed"
-                onClick={handleJoin}
+                onClick={() => handleJoin(trainInput)}
                 disabled={isLoading || trainInput.length !== 4}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -277,7 +272,6 @@ export default function HomePage() {
         </AnimatePresence>
       </div>
 
-      {/* Scanline overlay */}
       <div className="scanline pointer-events-none" />
     </main>
   );
